@@ -313,3 +313,158 @@ fn test_grant_consent_with_invalid_expiry_fails() {
         "Invalid consent must not be created"
     );
 }
+
+#[test]
+fn test_grant_revoke_grant_consent() {
+    let mut svm = LiteSVM::new();
+
+    let patient = Keypair::new();
+    let provider = Keypair::new();
+
+    svm.airdrop(&patient.pubkey(), 10_000_000_000).unwrap();
+
+    let program_bytes =
+        include_bytes!("../../../target/deploy/healthcare_records.so");
+
+    svm.add_program(healthcare_records::ID, program_bytes)
+        .unwrap();
+
+    let record_id: u64 = 1;
+    let record_hash = [7u8; 32];
+
+    let (record_pda, _) = Pubkey::find_program_address(
+        &[
+            RECORD_SEED,
+            patient.pubkey().as_ref(),
+            &record_id.to_le_bytes(),
+        ],
+        &healthcare_records::ID,
+    );
+
+    // Create record.
+    let create_ix = anchor_lang::solana_program::instruction::Instruction {
+        program_id: healthcare_records::ID,
+        accounts: healthcare_records::accounts::CreateRecord {
+            record: record_pda,
+            patient: patient.pubkey(),
+            provider: provider.pubkey(),
+            system_program: anchor_lang::system_program::ID,
+        }
+        .to_account_metas(None),
+        data: healthcare_records::instruction::CreateRecord {
+            record_id,
+            record_hash,
+        }
+        .data(),
+    };
+
+    let tx = Transaction::new_signed_with_payer(
+        &[create_ix],
+        Some(&patient.pubkey()),
+        &[&patient],
+        svm.latest_blockhash(),
+    );
+
+    svm.send_transaction(tx).unwrap();
+
+    let (consent_pda, _) = Pubkey::find_program_address(
+        &[
+            CONSENT_SEED,
+            patient.pubkey().as_ref(),
+            provider.pubkey().as_ref(),
+            &record_id.to_le_bytes(),
+        ],
+        &healthcare_records::ID,
+    );
+
+    // First grant.
+    let expires_at = svm.get_sysvar::<Clock>().unix_timestamp + 3600;
+
+    let grant_ix = anchor_lang::solana_program::instruction::Instruction {
+        program_id: healthcare_records::ID,
+        accounts: healthcare_records::accounts::GrantConsent {
+            record: record_pda,
+            consent: consent_pda,
+            patient: patient.pubkey(),
+            provider: provider.pubkey(),
+            system_program: anchor_lang::system_program::ID,
+        }
+        .to_account_metas(None),
+        data: healthcare_records::instruction::GrantConsent {
+            record_id,
+            expires_at,
+        }
+        .data(),
+    };
+
+    let tx = Transaction::new_signed_with_payer(
+        &[grant_ix],
+        Some(&patient.pubkey()),
+        &[&patient],
+        svm.latest_blockhash(),
+    );
+
+    svm.send_transaction(tx).unwrap();
+
+    // Verify first grant is active.
+    let consent_account = svm.get_account(&consent_pda).unwrap();
+    assert_eq!(consent_account.data[128], 1);
+
+    // Revoke.
+    let revoke_ix = anchor_lang::solana_program::instruction::Instruction {
+        program_id: healthcare_records::ID,
+        accounts: healthcare_records::accounts::RevokeConsent {
+            consent: consent_pda,
+            patient: patient.pubkey(),
+        }
+        .to_account_metas(None),
+        data: healthcare_records::instruction::RevokeConsent {}.data(),
+    };
+
+    let tx = Transaction::new_signed_with_payer(
+        &[revoke_ix],
+        Some(&patient.pubkey()),
+        &[&patient],
+        svm.latest_blockhash(),
+    );
+
+    svm.send_transaction(tx).unwrap();
+
+    // Verify revoked.
+    let consent_account = svm.get_account(&consent_pda).unwrap();
+    assert_eq!(consent_account.data[128], 0);
+
+    // Grant again using the SAME consent PDA.
+    let new_expires_at = svm.get_sysvar::<Clock>().unix_timestamp + 7200;
+
+    let grant_again_ix =
+        anchor_lang::solana_program::instruction::Instruction {
+            program_id: healthcare_records::ID,
+            accounts: healthcare_records::accounts::GrantConsent {
+                record: record_pda,
+                consent: consent_pda,
+                patient: patient.pubkey(),
+                provider: provider.pubkey(),
+                system_program: anchor_lang::system_program::ID,
+            }
+            .to_account_metas(None),
+            data: healthcare_records::instruction::GrantConsent {
+                record_id,
+                expires_at: new_expires_at,
+            }
+            .data(),
+        };
+
+    let tx = Transaction::new_signed_with_payer(
+        &[grant_again_ix],
+        Some(&patient.pubkey()),
+        &[&patient],
+        svm.latest_blockhash(),
+    );
+
+    svm.send_transaction(tx).unwrap();
+
+    // Verify consent was reactivated.
+    let consent_account = svm.get_account(&consent_pda).unwrap();
+    assert_eq!(consent_account.data[128], 1);
+}

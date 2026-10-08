@@ -42,7 +42,7 @@ pub struct GrantConsent<'info> {
     pub record: Account<'info, Record>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = patient,
         space = 8 + Consent::INIT_SPACE,
         seeds = [
