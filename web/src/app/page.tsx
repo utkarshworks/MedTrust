@@ -209,6 +209,7 @@ function Overview({ records }: { records: MedicalRecord[] }) {
 function MedicalRecords({ records }: { records: MedicalRecord[] }) {
   const { publicKey } = useWallet();
   const [verified, setVerified] = useState(false);
+  const [simulateTampering, setSimulateTampering] = useState(false);
   const [walletMatches, setWalletMatches] = useState(false);
   const [chainRecord, setChainRecord] = useState<RecordData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -231,13 +232,13 @@ function MedicalRecords({ records }: { records: MedicalRecord[] }) {
           throw new Error("Unable to load the medical record file");
         }
 
-        const medicalRecord = await response.text();
-        const localHash = await sha256(medicalRecord);
+       const medicalRecord = await response.text();
+       const localHash = await sha256(medicalRecord);
 
-        setChainRecord(data);
-        setError(null);
+       setChainRecord(data);
+       setError(null);
 
-        setVerified(localHash === data.recordHash);
+       setVerified(!simulateTampering && localHash === data.recordHash);
 
       } catch (err) {
         console.error(err);
@@ -250,7 +251,7 @@ function MedicalRecords({ records }: { records: MedicalRecord[] }) {
     }
 
     verifyRecord();
-  }, [publicKey]);
+  }, [publicKey, simulateTampering]);
 
   return (
     <section>
@@ -265,8 +266,15 @@ function MedicalRecords({ records }: { records: MedicalRecord[] }) {
           </p>
         </div>
 
-        <button className="rounded-xl bg-[#6254e7] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#5144d8]">
-          + Add record
+        <button
+          onClick={() => setSimulateTampering((current) => !current)}
+          className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
+            simulateTampering
+              ? "bg-[#f7eeee] text-[#a24d4d] hover:bg-[#f2e5e5]"
+              : "bg-[#6254e7] text-white hover:bg-[#5144d8]"
+          }`}
+        >
+          {simulateTampering ? "Restore record" : "Simulate tampering"}
         </button>
       </div>
 
@@ -316,10 +324,30 @@ function MedicalRecords({ records }: { records: MedicalRecord[] }) {
                 </div>
 
                 <div className="mt-5 border-t border-[#eef0f4] pt-4">
-                  <p className="text-xs text-[#858694]">SHA-256 record hash</p>
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs text-[#858694]">
+                      SHA-256 record hash
+                    </p>
 
-                  <p className="mt-1 break-all font-mono text-xs text-[#5e6070]">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                        verified
+                          ? "bg-[#edf8f1] text-[#3d8560]"
+                          : "bg-[#f7eeee] text-[#a24d4d]"
+                      }`}
+                    >
+                      {verified ? "Integrity verified" : "Integrity mismatch"}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 break-all font-mono text-xs text-[#5e6070]">
                     {chainRecord.recordHash}
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-[#858694]">
+                    {verified
+                      ? "The current off-chain record matches the SHA-256 hash stored on Solana."
+                      : "The current off-chain record does not match the hash stored on Solana."}
                   </p>
                 </div>
               </div>
