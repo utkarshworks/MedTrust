@@ -1,0 +1,5 @@
+TEST MEDICAL RECORD
+Patient ID: DEMO-001
+Record Type: Routine Checkup
+Date: 2026-10-08
+Status: Test Data Only
