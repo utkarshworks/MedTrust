@@ -110,9 +110,11 @@ A compatible Solana wallet, such as Phantom
 
 From the repository root:
 
-```cd web
+```
+cd web
 npm install
 npm run dev
+
 ```
 
 Open http://localhost:3000 in your browser.
@@ -123,11 +125,11 @@ The application is configured to connect to Solana Devnet. A compatible wallet c
 
 From the repository root:
 
-anchor build
+```anchor build```
 
 Run the program tests using the configured Anchor test environment:
 
-anchor test
+```anchor test```
 
 These commands require the appropriate Solana and Anchor tooling.
 
