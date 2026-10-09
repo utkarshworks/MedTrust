@@ -205,25 +205,36 @@ export interface ConsentActivity {
 
 export async function getConsentActivity(): Promise<ConsentActivity[]> {
   const signatures = await connection.getSignaturesForAddress(CONSENT_PDA, {
-    limit: 20,
+    limit: 10,
   });
-
-  if (signatures.length === 0) {
-    return [];
-  }
-
-  const transactions = await connection.getParsedTransactions(
-    signatures.map((item) => item.signature),
-    {
-      maxSupportedTransactionVersion: 0,
-    },
-  );
 
   const activities: ConsentActivity[] = [];
 
-  transactions.forEach((transaction, index) => {
+  for (const item of signatures) {
+    let transaction = null;
+
+    // Retry rate-limited requests up to 3 times.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        transaction = await connection.getParsedTransaction(item.signature, {
+          maxSupportedTransactionVersion: 0,
+        });
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        if (!message.includes("429") || attempt === 2) {
+          throw error;
+        }
+
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * (attempt + 1)),
+        );
+      }
+    }
+
     if (!transaction) {
-      return;
+      continue;
     }
 
     const logs = transaction.meta?.logMessages ?? [];
@@ -237,7 +248,7 @@ export async function getConsentActivity(): Promise<ConsentActivity[]> {
     );
 
     if (!isGrant && !isRevoke) {
-      return;
+      continue;
     }
 
     activities.push({
@@ -247,9 +258,12 @@ export async function getConsentActivity(): Promise<ConsentActivity[]> {
       description: "MedTrust Demo Clinic",
       timestamp: transaction.blockTime ?? 0,
       status: isGrant ? "Granted" : "Revoked",
-      signature: signatures[index].signature,
+      signature: item.signature,
     });
-  });
+
+    // Space out consecutive RPC requests.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
 
   return activities;
 }
