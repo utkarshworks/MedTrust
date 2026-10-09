@@ -94,20 +94,7 @@ This history represents recorded consent transactions, not a complete audit of e
 
 ## 6. Repository Structure
 
-MedTrust/
-├── programs/
-│ └── healthcare-records/
-│ ├── src/
-│ └── tests/
-├── web/
-│ └── src/
-│ ├── app/
-│ ├── components/
-│ └── lib/
-├── sample-medical-record.txt
-├── Anchor.toml
-├── Cargo.toml
-└── README.md
+<img width="2752" height="1536" alt="Directory structure" src="https://github.com/user-attachments/assets/ae7d690c-0895-4927-8044-d5f1d3f058d4" />
 
 ## 7. Prerequisites
 
