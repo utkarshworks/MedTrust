@@ -7,6 +7,8 @@ import {
 } from "@solana/web3.js";
 import { connection, PROGRAM_ID } from "./solana";
 
+let consentActivityRequest: Promise<ConsentActivity[]> | null = null;
+
 export const CONSENT_PDA = new PublicKey(
   "3fjty8qtRUZpyjyMtTkyYAcpamMYX1KU553mgcsxN6jp",
 );
@@ -203,10 +205,42 @@ export interface ConsentActivity {
   signature: string;
 }
 
-export async function getConsentActivity(): Promise<ConsentActivity[]> {
-  const signatures = await connection.getSignaturesForAddress(CONSENT_PDA, {
-    limit: 10,
+export function getConsentActivity(): Promise<ConsentActivity[]> {
+  if (consentActivityRequest) {
+    return consentActivityRequest;
+  }
+
+  consentActivityRequest = loadConsentActivity();
+
+  return consentActivityRequest.finally(() => {
+    consentActivityRequest = null;
   });
+}
+
+async function loadConsentActivity(): Promise<ConsentActivity[]> {
+  let signatures;
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      signatures = await connection.getSignaturesForAddress(CONSENT_PDA, {
+        limit: 10,
+      });
+      break;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (!message.includes("429") || attempt === 3) {
+        throw error;
+      }
+
+      const delay = 1500 * (attempt + 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  if (!signatures) {
+    return [];
+  }
 
   const activities: ConsentActivity[] = [];
 
