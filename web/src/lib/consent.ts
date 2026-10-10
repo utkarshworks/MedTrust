@@ -8,6 +8,10 @@ import {
 import { connection, PROGRAM_ID } from "./solana";
 
 let consentActivityRequest: Promise<ConsentActivity[]> | null = null;
+let consentActivityCache: ConsentActivity[] | null = null;
+let consentActivityCacheTime = 0;
+
+const CONSENT_ACTIVITY_CACHE_TTL = 30_000;
 
 export const CONSENT_PDA = new PublicKey(
   "3fjty8qtRUZpyjyMtTkyYAcpamMYX1KU553mgcsxN6jp",
@@ -206,15 +210,28 @@ export interface ConsentActivity {
 }
 
 export function getConsentActivity(): Promise<ConsentActivity[]> {
+  if (
+    consentActivityCache !== null &&
+    Date.now() - consentActivityCacheTime < CONSENT_ACTIVITY_CACHE_TTL
+  ) {
+    return Promise.resolve(consentActivityCache);
+  }
+
   if (consentActivityRequest) {
     return consentActivityRequest;
   }
 
-  consentActivityRequest = loadConsentActivity();
+  consentActivityRequest = loadConsentActivity()
+    .then((activities) => {
+      consentActivityCache = activities;
+      consentActivityCacheTime = Date.now();
+      return activities;
+    })
+    .finally(() => {
+      consentActivityRequest = null;
+    });
 
-  return consentActivityRequest.finally(() => {
-    consentActivityRequest = null;
-  });
+  return consentActivityRequest;
 }
 
 async function loadConsentActivity(): Promise<ConsentActivity[]> {

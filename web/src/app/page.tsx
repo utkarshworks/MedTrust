@@ -34,6 +34,18 @@ interface AccessPermission {
   status: string;
 }
 
+type ConsentStatus = "Active" | "Expired" | "Revoked";
+
+function getConsentStatus(consent: ConsentData): ConsentStatus {
+  if (!consent.active) {
+    return "Revoked";
+  }
+
+  return Math.floor(Date.now() / 1000) < consent.expiresAt
+    ? "Active"
+    : "Expired";
+}
+
 const records: MedicalRecord[] = [
   {
     id: 1,
@@ -150,7 +162,8 @@ function Overview({
     loadConsent();
   }, []);
 
-  const activeAccess = consent?.active ? 1 : 0;
+  const activeAccess =
+    consent && getConsentStatus(consent) === "Active" ? 1 : 0;
   const verifiedRecords = records.filter(
     (record) => record.status === "Verified",
   ).length;
@@ -338,17 +351,27 @@ function Overview({
 
               <span
                 className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-medium ${
-                  consent.active
+                  getConsentStatus(consent) === "Active"
                     ? "bg-[#edf8f1] text-[#347d56]"
-                    : "bg-[#fbefef] text-[#a24d4d]"
+                    : getConsentStatus(consent) === "Expired"
+                      ? "bg-[#fff4e5] text-[#9a6700]"
+                      : "bg-[#fbefef] text-[#a24d4d]"
                 }`}
               >
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
-                    consent.active ? "bg-[#3d9569]" : "bg-[#bd5b5b]"
+                    getConsentStatus(consent) === "Active"
+                      ? "bg-[#3d9569]"
+                      : getConsentStatus(consent) === "Expired"
+                        ? "bg-[#d99a24]"
+                        : "bg-[#bd5b5b]"
                   }`}
                 />
-                {consent.active ? "Access active" : "Access revoked"}
+                {getConsentStatus(consent) === "Active"
+                  ? "Access active"
+                  : getConsentStatus(consent) === "Expired"
+                    ? "Access expired"
+                    : "Access revoked"}
               </span>
             </div>
           ) : (
@@ -953,18 +976,24 @@ function AccessControl({ access }: { access: AccessPermission[] }) {
 
             <div
               className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ${
-                consent.active
+                getConsentStatus(consent) === "Active"
                   ? "bg-[#edf8f1] text-[#3d8560]"
-                  : "bg-[#f7eeee] text-[#a24d4d]"
+                  : getConsentStatus(consent) === "Expired"
+                    ? "bg-[#fff4e5] text-[#9a6700]"
+                    : "bg-[#f7eeee] text-[#a24d4d]"
               }`}
             >
               <span
                 className={`h-2 w-2 rounded-full ${
-                  consent.active ? "bg-[#4caf73]" : "bg-[#c45c5c]"
+                  getConsentStatus(consent) === "Active"
+                    ? "bg-[#4caf73]"
+                    : getConsentStatus(consent) === "Expired"
+                      ? "bg-[#d99a24]"
+                      : "bg-[#c45c5c]"
                 }`}
               />
 
-              {consent.active ? "Active" : "Revoked"}
+              {getConsentStatus(consent)}
             </div>
           </div>
 
@@ -983,7 +1012,7 @@ function AccessControl({ access }: { access: AccessPermission[] }) {
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3 border-t border-[#eeeeF3] pt-5">
-            {!consent.active ? (
+            {getConsentStatus(consent) !== "Active" ? (
               <button
                 onClick={handleGrant}
                 disabled={processing || !walletMatches}

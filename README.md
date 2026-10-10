@@ -94,7 +94,7 @@ This history represents recorded consent transactions, not a complete audit of e
 
 ## 6. Repository Structure
 
-<img width="1536" height="1024" alt="MedTrust Root Structure Diagram" src="https://github.com/user-attachments/assets/1f2ad199-f334-49ab-a8ca-82d52977b1f1" />
+<img width="1536" height="1024" alt="MedTrust Root Structure Diagram" src="./image.png" />
 
 ## 7. Prerequisites
 
