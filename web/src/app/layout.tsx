@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/next";
 import { WalletProviderWrapper } from "@/components/WalletProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <WalletProviderWrapper>
           <ToastProvider>{children}</ToastProvider>
         </WalletProviderWrapper>
+        <Analytics />
       </body>
     </html>
   );
