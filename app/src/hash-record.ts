@@ -1,10 +1,12 @@
-import { createHash } from "node:crypto";
-import fs from "node:fs";
+import { computeFileSha256, DEFAULT_RECORD_PATH } from "./common.js";
 
-const FILE_PATH = "sample-medical-record.txt";
+const filePath = process.argv[2] || DEFAULT_RECORD_PATH;
 
-const file = fs.readFileSync(FILE_PATH);
-const hash = createHash("sha256").update(file).digest("hex");
-
-console.log("File:", FILE_PATH);
-console.log("SHA-256:", hash);
+try {
+  const hash = computeFileSha256(filePath).toString("hex");
+  console.log("File:", filePath);
+  console.log("SHA-256:", hash);
+} catch (error) {
+  console.error("Failed to hash file:", error);
+  process.exit(1);
+}

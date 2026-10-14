@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx tsx scripts/test-mvp-e2e.ts",
+    "hash-record": "npx tsx app/src/hash-record.ts",
+    "derive-record": "npx tsx app/src/derive-record.ts"
   },
   "keywords": [],
   "author": "",

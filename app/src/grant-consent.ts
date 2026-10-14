@@ -1,70 +1,22 @@
-import { AnchorProvider, BN, Program, Wallet } from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
+import { SystemProgram } from "@solana/web3.js";
 import {
-  Connection,
-  Keypair,
-  PublicKey,
-  SystemProgram,
-} from "@solana/web3.js";
-import fs from "node:fs";
-
-const RPC_URL = "https://api.devnet.solana.com";
-
-const PROGRAM_ID = new PublicKey(
-  "9yeMT9pyBoqQ1EEfFcP4y2j97rpmJZtxMsNoVMVXt9Sh"
-);
-
-const WALLET_PATH = "/home/Utkarsh/.config/solana/id.json";
+  deriveConsentPda,
+  deriveRecordPda,
+  getAnchorContext,
+} from "./common.js";
 
 const RECORD_ID = 1n;
-
-// 1 hour from now
-const EXPIRES_IN_SECONDS = 60 * 60;
-
-const idl = JSON.parse(
-  fs.readFileSync("target/idl/healthcare_records.json", "utf8")
-);
+const EXPIRES_IN_SECONDS = 60 * 60; // 1 hour
 
 async function main() {
-  const secretKey = Uint8Array.from(
-    JSON.parse(fs.readFileSync(WALLET_PATH, "utf8"))
-  );
+  const { keypair, program } = getAnchorContext();
 
-  const keypair = Keypair.fromSecretKey(secretKey);
-  const wallet = new Wallet(keypair);
-
-  const connection = new Connection(RPC_URL, "confirmed");
-
-  const provider = new AnchorProvider(connection, wallet, {
-    commitment: "confirmed",
-  });
-
-  const program = new Program(idl, provider);
-
-  const recordIdBuffer = Buffer.alloc(8);
-  recordIdBuffer.writeBigUInt64LE(RECORD_ID);
-
-  // For this prototype, patient and provider are the same wallet.
   const patient = keypair.publicKey;
-  const providerPublicKey = keypair.publicKey;
+  const providerPublicKey = keypair.publicKey; // For demo/testing, provider defaults to same wallet
 
-  const [recordPda] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("record"),
-      patient.toBuffer(),
-      recordIdBuffer,
-    ],
-    PROGRAM_ID
-  );
-
-  const [consentPda] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("consent"),
-      patient.toBuffer(),
-      providerPublicKey.toBuffer(),
-      recordIdBuffer,
-    ],
-    PROGRAM_ID
-  );
+  const [recordPda] = deriveRecordPda(patient, RECORD_ID);
+  const [consentPda] = deriveConsentPda(patient, providerPublicKey, RECORD_ID);
 
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + EXPIRES_IN_SECONDS;
@@ -74,14 +26,11 @@ async function main() {
   console.log("Record ID:", RECORD_ID.toString());
   console.log("Record PDA:", recordPda.toBase58());
   console.log("Consent PDA:", consentPda.toBase58());
-  console.log("Expires At:", expiresAt);
+  console.log("Expires At:", new Date(expiresAt * 1000).toISOString());
 
   const signature = await program.methods
-    .grantConsent(
-      new BN(RECORD_ID.toString()),
-      new BN(expiresAt)
-    )
-    .accounts({
+    .grantConsent(new BN(RECORD_ID.toString()), new BN(expiresAt))
+    .accountsStrict({
       record: recordPda,
       consent: consentPda,
       patient,
@@ -117,6 +66,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error("Failed to grant consent:", error);
   process.exit(1);
 });

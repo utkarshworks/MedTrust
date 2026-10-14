@@ -5,9 +5,8 @@ import {
   ConnectionProvider,
   WalletProvider,
 } from "@solana/wallet-adapter-react";
-import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
+import { SOLANA_RPC_URL } from "@/lib/solana";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 interface Props {
@@ -15,14 +14,11 @@ interface Props {
 }
 
 export const WalletProviderWrapper: FC<Props> = ({ children }) => {
-  const network = WalletAdapterNetwork.Devnet;
-
-  const endpoint = "https://api.devnet.solana.com";
-
-  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
+  // Use standard Solana Wallet Standard (Phantom, Solflare, Backpack, etc. auto-detected)
+  const wallets = useMemo(() => [], []);
 
   return (
-    <ConnectionProvider endpoint={endpoint}>
+    <ConnectionProvider endpoint={SOLANA_RPC_URL}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>

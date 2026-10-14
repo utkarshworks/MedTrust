@@ -1,16 +1,9 @@
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import fs from "node:fs";
-
-const RPC_URL = "https://api.devnet.solana.com";
-const WALLET_PATH = "/home/Utkarsh/.config/solana/id.json";
+import { Connection } from "@solana/web3.js";
+import { loadKeypair, RPC_URL } from "./common.js";
 
 async function main() {
-  const secretKey = Uint8Array.from(
-    JSON.parse(fs.readFileSync(WALLET_PATH, "utf8"))
-  );
-
-  const wallet = Keypair.fromSecretKey(secretKey);
-  const publicKey = wallet.publicKey;
+  const keypair = loadKeypair();
+  const publicKey = keypair.publicKey;
 
   const connection = new Connection(RPC_URL, "confirmed");
   const balance = await connection.getBalance(publicKey);
@@ -20,6 +13,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error("Error checking wallet:", error);
   process.exit(1);
 });

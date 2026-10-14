@@ -9,3 +9,5 @@ test-ledger
 .next
 .env
 .env.local
+data/
+web/data/

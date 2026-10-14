@@ -1,9 +1,5 @@
-import { Connection, PublicKey } from "@solana/web3.js";
-
-const RPC_URL = "https://api.devnet.solana.com";
-const PROGRAM_ID = new PublicKey(
-  "9yeMT9pyBoqQ1EEfFcP4y2j97rpmJZtxMsNoVMVXt9Sh"
-);
+import { Connection } from "@solana/web3.js";
+import { PROGRAM_ID, RPC_URL } from "./common.js";
 
 async function main() {
   const connection = new Connection(RPC_URL, "confirmed");
@@ -11,17 +7,17 @@ async function main() {
   const accountInfo = await connection.getAccountInfo(PROGRAM_ID);
 
   if (!accountInfo) {
-    throw new Error("MedTrust program was not found on Devnet.");
+    throw new Error(`MedTrust program (${PROGRAM_ID.toBase58()}) was not found on Devnet.`);
   }
 
   console.log("MedTrust program found on Devnet.");
   console.log("Program ID:", PROGRAM_ID.toBase58());
   console.log("Program owner:", accountInfo.owner.toBase58());
   console.log("Program executable:", accountInfo.executable);
-  console.log("Program data length:", accountInfo.data.length);
+  console.log("Program data length:", accountInfo.data.length, "bytes");
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error("Error checking program:", error);
   process.exit(1);
 });

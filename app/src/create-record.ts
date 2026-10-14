@@ -1,52 +1,20 @@
-import { AnchorProvider, BN, Program, Wallet } from "@coral-xyz/anchor";
-import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
-import fs from "node:fs";
-import { createHash } from "node:crypto";
+import { BN } from "@coral-xyz/anchor";
+import { SystemProgram } from "@solana/web3.js";
+import {
+  computeFileSha256,
+  DEFAULT_RECORD_PATH,
+  deriveRecordPda,
+  getAnchorContext,
+} from "./common.js";
 
-const RPC_URL = "https://api.devnet.solana.com";
-
-const PROGRAM_ID = new PublicKey(
-  "9yeMT9pyBoqQ1EEfFcP4y2j97rpmJZtxMsNoVMVXt9Sh"
-);
-
-const WALLET_PATH = "/home/Utkarsh/.config/solana/id.json";
-const RECORD_PATH = "sample-medical-record.txt";
 const RECORD_ID = 1n;
 
-const idl = JSON.parse(
-  fs.readFileSync("target/idl/healthcare_records.json", "utf8")
-);
-
 async function main() {
-  const secretKey = Uint8Array.from(
-    JSON.parse(fs.readFileSync(WALLET_PATH, "utf8"))
-  );
+  const { keypair, program } = getAnchorContext();
+  const filePath = process.argv[2] || DEFAULT_RECORD_PATH;
+  const hash = computeFileSha256(filePath);
 
-  const keypair = Keypair.fromSecretKey(secretKey);
-  const wallet = new Wallet(keypair);
-
-  const connection = new Connection(RPC_URL, "confirmed");
-  const provider = new AnchorProvider(connection, wallet, {
-    commitment: "confirmed",
-  });
-
-  const program = new Program(idl, provider);
-
-  const record = fs.readFileSync(RECORD_PATH);
-  const hash = createHash("sha256").update(record).digest();
-
-  const recordIdBuffer = Buffer.alloc(8);
-  recordIdBuffer.writeBigUInt64LE(RECORD_ID);
-
-  const [recordPda] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("record"),
-      keypair.publicKey.toBuffer(),
-      recordIdBuffer,
-    ],
-    PROGRAM_ID
-  );
-
+  const [recordPda] = deriveRecordPda(keypair.publicKey, RECORD_ID);
   const providerPublicKey = keypair.publicKey;
 
   console.log("Patient:", keypair.publicKey.toBase58());
@@ -57,7 +25,7 @@ async function main() {
 
   const signature = await program.methods
     .createRecord(new BN(RECORD_ID.toString()), Array.from(hash))
-    .accounts({
+    .accountsStrict({
       record: recordPda,
       patient: keypair.publicKey,
       provider: providerPublicKey,
@@ -69,6 +37,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error("Failed to create record:", error);
   process.exit(1);
 });
